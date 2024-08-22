@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K6 Load Test Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 20px;
+            overflow: hidden;
+        }
+        h1 {
+            background: #333;
+            color: #fff;
+            padding: 15px 0;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        h2 {
+            background: #e0e0e0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            display: inline-block;
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s ease;
+        }
+        button:hover {
+            background: #555;
+        }
+        .stop-button {
+            background: #d32f2f;
+            margin-left: 10px;
+        }
+        .stop-button:hover {
+            background: #c62828;
+        }
+        .results {
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .results pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .status-info {
+            background: #e0f7fa;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .status-info.success {
+            background: #c8e6c9;
+            color: #388e3c;
+        }
+        .status-info.error {
+            background: #ffcdd2;
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Load Testing Interface</h1>
+
+        <h2>Scenario 1 : POST /v1/token</h2>
+        <form id="k6-form-1">
+            <label for="domain-1">Enter Domain:</label>
+            <input type="text" id="domain-1" name="domain" placeholder="e.g., http://example.com" required>
+            <button type="submit">Run Test for Scenario 1</button>
+            <button type="button" class="stop-button" id="stop-1">STOP</button>
+        </form>
+
+        <h2>Scenario 2 : POST /v1/employee</h2>
+        <form id="k6-form-2">
+            <label for="domain-and-endpoint">Enter Domain:</label>
+            <input type="text" id="domain-and-endpoint" name="domain_and_endpoint" placeholder="e.g., http://example.com" required>
+            <button type="submit">Run Test for Scenario 2</button>
+            <button type="button" class="stop-button" id="stop-2">STOP</button>
+        </form>
+
+        <h2>Scenario 3 : GET /v1/employee</h2>
+        <form id="k6-form-3">
+            <label for="domain-and-endpoint-3">Enter Domain:</label>
+            <input type="text" id="domain-and-endpoint-3" name="domain_and_endpoint" placeholder="e.g., http://example.com" required>
+            <button type="submit">Run Test for Scenario 3</button>
+            <button type="button" class="stop-button" id="stop-3">STOP</button>
+        </form>
+
+        <div id="status-info" class="status-info"></div>
+
+        <div id="result-1" class="results">
+            <h3>Scenario 1 Metrics</h3>
+            <pre id="metrics-1"></pre>
+        </div>
+        <div id="result-2" class="results">
+            <h3>Scenario 2 Metrics</h3>
+            <pre id="metrics-2"></pre>
+        </div>
+        <div id="result-3" class="results">
+            <h3>Scenario 3 Metrics</h3>
+            <pre id="metrics-3"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Utility function to display metrics
+        function displayMetrics(id, metrics) {
+            const resultDiv = document.getElementById(id);
+            resultDiv.innerHTML = `
+                <pre>${JSON.stringify(metrics, null, 2)}</pre>
+            `;
+        }
+
+        // Utility function to display status
+        function displayStatus(className, message) {
+            const statusInfo = document.getElementById('status-info');
+            statusInfo.className = `status-info ${className}`;
+            statusInfo.textContent = message;
+        }
+
+        // Function to run k6 test
+        async function runK6(endpoint, body, resultId, metricsId) {
+            displayStatus('info', 'Running test...');
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const result = await response.json();
+                displayMetrics(metricsId, result.metrics);
+                displayStatus('success', 'Test completed successfully!');
+            } catch (error) {
+                displayStatus('error', 'An error occurred. Please try again.');
+            }
+        }
+
+        // Scenario 1 handler
+        document.getElementById('k6-form-1').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const domain = document.getElementById('domain-1').value;
+            runK6('/run-k6-scenario1/', { domain }, 'result-1', 'metrics-1');
+        });
+
+        // Scenario 2 handler
+        document.getElementById('k6-form-2').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const domainAndEndpoint = document.getElementById('domain-and-endpoint').value;
+            runK6('/run-k6-scenario2/', { domain_and_endpoint: domainAndEndpoint }, 'result-2', 'metrics-2');
+        });
+
+        // Scenario 3 handler
+        document.getElementById('k6-form-3').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const domainAndEndpoint3 = document.getElementById('domain-and-endpoint-3').value;
+            runK6('/run-k6-scenario3/', { domain_and_endpoint: domainAndEndpoint3 }, 'result-3', 'metrics-3');
+        });
+
+        // STOP button handlers
+        async function stopK6(scenarioId) {
+            displayStatus('info', 'Stopping test...');
+            try {
+                const response = await fetch('/stop-k6/', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    displayStatus('success', 'Test stopped successfully!');
+                    // Fetch metrics after stopping
+                    const metricsResponse = await fetch(`/get-metrics-${scenarioId}/`);
+                    const metricsResult = await metricsResponse.json();
+                    displayMetrics(`metrics-${scenarioId}`, metricsResult.metrics);
+                } else {
+                    throw new Error('Failed to stop test');
+                }
+            } catch (error) {
+                displayStatus('error', 'An error occurred. Please try again.');
+            }
+        }
+
+        document.getElementById('stop-1').addEventListener('click', function() { stopK6(1); });
+        document.getElementById('stop-2').addEventListener('click', function() { stopK6(2); });
+        document.getElementById('stop-3').addEventListener('click', function() { stopK6(3); });
+    </script>
+</body>
+</html>
