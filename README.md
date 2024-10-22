@@ -1,1 +1,1 @@
-# k6-application
+# k6_Application
